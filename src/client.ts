@@ -62,6 +62,7 @@ export class HeimdallClient {
     const resource = new Resource({
       [ATTR_SERVICE_NAME]: this.config.serviceName,
       [HeimdallAttributes.HEIMDALL_ENVIRONMENT]: this.config.environment,
+      [HeimdallAttributes.HEIMDALL_PROJECT_ID]: this.config.projectId,
     });
 
     // Create tracer provider

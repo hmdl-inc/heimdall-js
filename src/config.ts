@@ -27,6 +27,12 @@ export interface HeimdallConfig {
   environment?: string;
 
   /**
+   * Project ID to associate traces with in Heimdall
+   * @default "default"
+   */
+  projectId?: string;
+
+  /**
    * Whether tracing is enabled
    * @default true
    */
@@ -70,6 +76,7 @@ export interface ResolvedHeimdallConfig {
   endpoint: string;
   serviceName: string;
   environment: string;
+  projectId: string;
   enabled: boolean;
   debug: boolean;
   batchSize: number;
@@ -116,6 +123,7 @@ export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConf
     endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "https://api.heimdall.dev")!,
     serviceName: config.serviceName ?? getEnv("HEIMDALL_SERVICE_NAME", "mcp-server")!,
     environment: config.environment ?? getEnv("HEIMDALL_ENVIRONMENT", "development")!,
+    projectId: config.projectId ?? getEnv("HEIMDALL_PROJECT_ID", "default")!,
     enabled: config.enabled ?? getEnvBool("HEIMDALL_ENABLED", true),
     debug: config.debug ?? getEnvBool("HEIMDALL_DEBUG", false),
     batchSize: config.batchSize ?? getEnvNumber("HEIMDALL_BATCH_SIZE", 100),
