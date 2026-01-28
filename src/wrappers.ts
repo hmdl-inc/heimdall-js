@@ -1,0 +1,364 @@
+/**
+ * Wrapper functions for instrumenting MCP functions with Heimdall observability
+ */
+
+import { SpanKind as OtelSpanKind, SpanStatusCode, Span } from "@opentelemetry/api";
+import { HeimdallClient } from "./client";
+import { HeimdallAttributes, SpanKind, SpanStatus } from "./types";
+
+type AnyFunction = (...args: unknown[]) => unknown;
+type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
+
+/**
+ * Safely serialize a value to string for span attributes
+ */
+function serializeValue(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Record an error on a span
+ */
+function recordError(span: Span, error: unknown): void {
+  const errorObj = error instanceof Error ? error : new Error(String(error));
+  span.setAttribute(HeimdallAttributes.STATUS, SpanStatus.ERROR);
+  span.setAttribute(HeimdallAttributes.ERROR_MESSAGE, errorObj.message);
+  span.setAttribute(HeimdallAttributes.ERROR_TYPE, errorObj.name);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: errorObj.message });
+  span.recordException(errorObj);
+}
+
+interface WrapperOptions {
+  /**
+   * Custom name for the span (defaults to function name)
+   */
+  name?: string;
+  /**
+   * Whether to capture input arguments
+   * @default true
+   */
+  captureInput?: boolean;
+  /**
+   * Whether to capture output/return value
+   * @default true
+   */
+  captureOutput?: boolean;
+}
+
+/**
+ * Create a wrapper for MCP-specific functions
+ */
+function createMCPWrapper(
+  spanKind: SpanKind,
+  nameAttr: string,
+  argsAttr: string,
+  resultAttr: string
+) {
+  return function wrapper<T extends AnyFunction>(
+    fn: T,
+    options: WrapperOptions = {}
+  ): T {
+    const spanName = options.name ?? fn.name ?? "anonymous";
+    const captureInput = options.captureInput ?? true;
+    const captureOutput = options.captureOutput ?? true;
+
+    const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
+      const client = HeimdallClient.getInstance();
+      if (!client) {
+        return fn.apply(this, args);
+      }
+
+      const tracer = client.getTracer();
+      const span = tracer.startSpan(spanName, {
+        kind: OtelSpanKind.SERVER,
+      });
+
+      const startTime = performance.now();
+
+      try {
+        // Set input attributes
+        span.setAttribute(nameAttr, spanName);
+        span.setAttribute("heimdall.span_kind", spanKind);
+
+        if (captureInput) {
+          span.setAttribute(argsAttr, serializeValue(args));
+        }
+
+        // Execute the function
+        const result = await fn.apply(this, args);
+
+        // Set output attributes
+        if (captureOutput) {
+          span.setAttribute(resultAttr, serializeValue(result));
+        }
+        span.setAttribute(HeimdallAttributes.STATUS, SpanStatus.OK);
+        span.setStatus({ code: SpanStatusCode.OK });
+
+        return result;
+      } catch (error) {
+        recordError(span, error);
+        throw error;
+      } finally {
+        const durationMs = performance.now() - startTime;
+        span.setAttribute(HeimdallAttributes.DURATION_MS, durationMs);
+        span.end();
+      }
+    };
+
+    // Preserve function name and properties
+    Object.defineProperty(wrapped, "name", { value: fn.name });
+    return wrapped as T;
+  };
+}
+
+/**
+ * Wrap an MCP tool function with observability tracking
+ *
+ * @example
+ * ```typescript
+ * const searchDocuments = traceMCPTool(
+ *   async (query: string, limit: number) => {
+ *     // Your implementation
+ *     return results;
+ *   },
+ *   { name: 'search-documents' }
+ * );
+ * ```
+ */
+export const traceMCPTool = createMCPWrapper(
+  SpanKind.MCP_TOOL,
+  HeimdallAttributes.MCP_TOOL_NAME,
+  HeimdallAttributes.MCP_TOOL_ARGUMENTS,
+  HeimdallAttributes.MCP_TOOL_RESULT
+);
+
+/**
+ * Wrap an MCP resource function with observability tracking
+ *
+ * @example
+ * ```typescript
+ * const readFile = traceMCPResource(
+ *   async (uri: string) => {
+ *     return fs.readFile(uri, 'utf-8');
+ *   },
+ *   { name: 'read-file' }
+ * );
+ * ```
+ */
+export const traceMCPResource = createMCPWrapper(
+  SpanKind.MCP_RESOURCE,
+  HeimdallAttributes.MCP_RESOURCE_URI,
+  "mcp.resource.arguments",
+  "mcp.resource.result"
+);
+
+/**
+ * Wrap an MCP prompt function with observability tracking
+ *
+ * @example
+ * ```typescript
+ * const generatePrompt = traceMCPPrompt(
+ *   async (context: string) => {
+ *     return [{ role: 'user', content: context }];
+ *   },
+ *   { name: 'generate-prompt' }
+ * );
+ * ```
+ */
+export const traceMCPPrompt = createMCPWrapper(
+  SpanKind.MCP_PROMPT,
+  HeimdallAttributes.MCP_PROMPT_NAME,
+  HeimdallAttributes.MCP_PROMPT_ARGUMENTS,
+  HeimdallAttributes.MCP_PROMPT_MESSAGES
+);
+
+/**
+ * General-purpose wrapper to observe any function
+ *
+ * @example
+ * ```typescript
+ * const processData = observe(
+ *   async (data: Record<string, unknown>) => {
+ *     return { processed: true, ...data };
+ *   },
+ *   { name: 'process-data' }
+ * );
+ * ```
+ */
+export function observe<T extends AnyFunction>(
+  fn: T,
+  options: WrapperOptions = {}
+): T {
+  const spanName = options.name ?? fn.name ?? "anonymous";
+  const captureInput = options.captureInput ?? true;
+  const captureOutput = options.captureOutput ?? true;
+
+  const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
+    const client = HeimdallClient.getInstance();
+    if (!client) {
+      return fn.apply(this, args);
+    }
+
+    const tracer = client.getTracer();
+    const span = tracer.startSpan(spanName, {
+      kind: OtelSpanKind.INTERNAL,
+    });
+
+    const startTime = performance.now();
+
+    try {
+      span.setAttribute("heimdall.span_kind", SpanKind.INTERNAL);
+
+      if (captureInput) {
+        span.setAttribute("heimdall.input", serializeValue(args));
+      }
+
+      const result = await fn.apply(this, args);
+
+      if (captureOutput) {
+        span.setAttribute("heimdall.output", serializeValue(result));
+      }
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return result;
+    } catch (error) {
+      recordError(span, error);
+      throw error;
+    } finally {
+      const durationMs = performance.now() - startTime;
+      span.setAttribute(HeimdallAttributes.DURATION_MS, durationMs);
+      span.end();
+    }
+  };
+
+  Object.defineProperty(wrapped, "name", { value: fn.name });
+  return wrapped as T;
+}
+
+/**
+ * TypeScript decorator for observing class methods
+ *
+ * @example
+ * ```typescript
+ * class MyService {
+ *   @Observe()
+ *   async processRequest(data: unknown) {
+ *     // Your implementation
+ *   }
+ *
+ *   @Observe({ name: 'custom-name' })
+ *   async anotherMethod() {
+ *     // Your implementation
+ *   }
+ * }
+ * ```
+ */
+export function Observe(options: WrapperOptions = {}) {
+  return function (
+    target: unknown,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value as AnyFunction;
+    const spanName = options.name ?? propertyKey;
+
+    descriptor.value = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
+      const client = HeimdallClient.getInstance();
+      if (!client) {
+        return originalMethod.apply(this, args);
+      }
+
+      const tracer = client.getTracer();
+      const span = tracer.startSpan(spanName, {
+        kind: OtelSpanKind.INTERNAL,
+      });
+
+      const startTime = performance.now();
+
+      try {
+        span.setAttribute("heimdall.span_kind", SpanKind.INTERNAL);
+
+        if (options.captureInput !== false) {
+          span.setAttribute("heimdall.input", serializeValue(args));
+        }
+
+        const result = await originalMethod.apply(this, args);
+
+        if (options.captureOutput !== false) {
+          span.setAttribute("heimdall.output", serializeValue(result));
+        }
+        span.setStatus({ code: SpanStatusCode.OK });
+
+        return result;
+      } catch (error) {
+        recordError(span, error);
+        throw error;
+      } finally {
+        const durationMs = performance.now() - startTime;
+        span.setAttribute(HeimdallAttributes.DURATION_MS, durationMs);
+        span.end();
+      }
+    };
+
+    return descriptor;
+  };
+}
+
+/**
+ * TypeScript decorator for MCP tool methods
+ */
+export function MCPTool(options: WrapperOptions = {}) {
+  return function (
+    target: unknown,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value as AnyFunction;
+    descriptor.value = traceMCPTool(originalMethod, {
+      name: options.name ?? propertyKey,
+      ...options,
+    });
+    return descriptor;
+  };
+}
+
+/**
+ * TypeScript decorator for MCP resource methods
+ */
+export function MCPResource(options: WrapperOptions = {}) {
+  return function (
+    target: unknown,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value as AnyFunction;
+    descriptor.value = traceMCPResource(originalMethod, {
+      name: options.name ?? propertyKey,
+      ...options,
+    });
+    return descriptor;
+  };
+}
+
+/**
+ * TypeScript decorator for MCP prompt methods
+ */
+export function MCPPrompt(options: WrapperOptions = {}) {
+  return function (
+    target: unknown,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ): PropertyDescriptor {
+    const originalMethod = descriptor.value as AnyFunction;
+    descriptor.value = traceMCPPrompt(originalMethod, {
+      name: options.name ?? propertyKey,
+      ...options,
+    });
+    return descriptor;
+  };
+}
+

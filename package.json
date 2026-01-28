@@ -1,0 +1,72 @@
+{
+  "name": "hmdl",
+  "version": "0.1.0",
+  "description": "Observability SDK for MCP (Model Context Protocol) servers - Heimdall Platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "observability",
+    "mcp",
+    "model-context-protocol",
+    "opentelemetry",
+    "tracing",
+    "monitoring",
+    "llm",
+    "ai",
+    "heimdall"
+  ],
+  "author": "Heimdall Team <team@heimdall.dev>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heimdall-observability/heimdall"
+  },
+  "homepage": "https://docs.heimdall.dev",
+  "bugs": {
+    "url": "https://github.com/heimdall-observability/heimdall/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/sdk-trace-base": "^1.20.0",
+    "@opentelemetry/sdk-trace-node": "^1.20.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.48.0",
+    "@opentelemetry/resources": "^1.20.0",
+    "@opentelemetry/semantic-conventions": "^1.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
+
