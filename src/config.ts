@@ -129,12 +129,7 @@ export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConf
  * Validate configuration
  */
 export function validateConfig(config: ResolvedHeimdallConfig): void {
-  if (config.enabled && !config.apiKey) {
-    throw new Error(
-      "HEIMDALL_API_KEY is required when tracing is enabled. " +
-        "Set the environment variable or pass apiKey to HeimdallConfig."
-    );
-  }
+  // API key is optional for local development
   if (config.batchSize < 1) {
     throw new Error("batchSize must be at least 1");
   }

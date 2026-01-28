@@ -94,10 +94,11 @@ describe("resolveConfig", () => {
 });
 
 describe("validateConfig", () => {
-  it("should throw when API key is missing and enabled", () => {
+  it("should not throw when API key is missing (API key is optional for local dev)", () => {
     const config = resolveConfig({ enabled: true });
 
-    expect(() => validateConfig(config)).toThrow("HEIMDALL_API_KEY is required");
+    // API key is now optional for local development
+    expect(() => validateConfig(config)).not.toThrow();
   });
 
   it("should not throw when API key is missing but disabled", () => {
