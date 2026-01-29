@@ -31,6 +31,24 @@ function recordError(span: Span, error: unknown): void {
   span.recordException(errorObj);
 }
 
+/**
+ * Function to extract user ID from the function arguments.
+ * This is useful for extracting user/session info from MCP Context or other sources.
+ *
+ * @param args - The arguments passed to the wrapped function
+ * @returns The user ID string, or undefined to use the default
+ *
+ * @example
+ * ```typescript
+ * // Extract user from MCP Context (first argument)
+ * const userExtractor = (args: unknown[]) => {
+ *   const ctx = args[0] as any;
+ *   return ctx?.session?.clientInfo?.name ?? ctx?.sessionId;
+ * };
+ * ```
+ */
+type UserExtractor = (args: unknown[]) => string | undefined;
+
 interface WrapperOptions {
   /**
    * Custom name for the span (defaults to function name)
@@ -51,6 +69,20 @@ interface WrapperOptions {
    * @default true
    */
   captureOutput?: boolean;
+  /**
+   * Function to extract user ID from the function arguments.
+   * Useful for extracting user/session info from MCP Context.
+   *
+   * @example
+   * ```typescript
+   * // Extract user from MCP Context
+   * userExtractor: (args) => {
+   *   const ctx = args[0] as any;
+   *   return ctx?.session?.clientInfo?.name ?? ctx?.sessionId;
+   * }
+   * ```
+   */
+  userExtractor?: UserExtractor;
 }
 
 /**
@@ -88,6 +120,7 @@ function createMCPWrapper(
     const paramNames = options.paramNames;
     const captureInput = options.captureInput ?? true;
     const captureOutput = options.captureOutput ?? true;
+    const userExtractor = options.userExtractor;
 
     const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
       const client = HeimdallClient.getInstance();
@@ -106,6 +139,20 @@ function createMCPWrapper(
         // Set input attributes
         span.setAttribute(nameAttr, spanName);
         span.setAttribute("heimdall.span_kind", spanKind);
+
+        // Extract user ID - try userExtractor first, fallback to "anonymous"
+        let userId = "anonymous";
+        if (userExtractor) {
+          try {
+            const extractedUserId = userExtractor(args);
+            if (extractedUserId) {
+              userId = extractedUserId;
+            }
+          } catch {
+            // Ignore extraction errors, use "anonymous"
+          }
+        }
+        span.setAttribute(HeimdallAttributes.HEIMDALL_USER_ID, userId);
 
         if (captureInput) {
           const namedArgs = argsToNamedObject(args, paramNames);

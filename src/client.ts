@@ -153,6 +153,13 @@ export class HeimdallClient {
   }
 
   /**
+   * Get the resolved configuration
+   */
+  getConfig(): ResolvedHeimdallConfig {
+    return this.config;
+  }
+
+  /**
    * Flush all pending spans
    */
   async flush(): Promise<void> {
