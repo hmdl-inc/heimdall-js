@@ -27,6 +27,12 @@ export interface HeimdallConfig {
   environment?: string;
 
   /**
+   * Organization ID from Heimdall dashboard
+   * @default "default"
+   */
+  orgId?: string;
+
+  /**
    * Project ID to associate traces with in Heimdall
    * @default "default"
    */
@@ -76,6 +82,7 @@ export interface ResolvedHeimdallConfig {
   endpoint: string;
   serviceName: string;
   environment: string;
+  orgId: string;
   projectId: string;
   enabled: boolean;
   debug: boolean;
@@ -123,6 +130,7 @@ export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConf
     endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "https://api.heimdall.dev")!,
     serviceName: config.serviceName ?? getEnv("HEIMDALL_SERVICE_NAME", "mcp-server")!,
     environment: config.environment ?? getEnv("HEIMDALL_ENVIRONMENT", "development")!,
+    orgId: config.orgId ?? getEnv("HEIMDALL_ORG_ID", "default")!,
     projectId: config.projectId ?? getEnv("HEIMDALL_PROJECT_ID", "default")!,
     enabled: config.enabled ?? getEnvBool("HEIMDALL_ENABLED", true),
     debug: config.debug ?? getEnvBool("HEIMDALL_DEBUG", false),

@@ -7,7 +7,6 @@ import { HeimdallClient } from "./client";
 import { HeimdallAttributes, SpanKind, SpanStatus } from "./types";
 
 type AnyFunction = (...args: unknown[]) => unknown;
-type AsyncFunction = (...args: unknown[]) => Promise<unknown>;
 
 /**
  * Safely serialize a value to string for span attributes
@@ -259,7 +258,7 @@ export function observe<T extends AnyFunction>(
  */
 export function Observe(options: WrapperOptions = {}) {
   return function (
-    target: unknown,
+    _target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
@@ -313,7 +312,7 @@ export function Observe(options: WrapperOptions = {}) {
  */
 export function MCPTool(options: WrapperOptions = {}) {
   return function (
-    target: unknown,
+    _target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
@@ -331,7 +330,7 @@ export function MCPTool(options: WrapperOptions = {}) {
  */
 export function MCPResource(options: WrapperOptions = {}) {
   return function (
-    target: unknown,
+    _target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {
@@ -349,7 +348,7 @@ export function MCPResource(options: WrapperOptions = {}) {
  */
 export function MCPPrompt(options: WrapperOptions = {}) {
   return function (
-    target: unknown,
+    _target: unknown,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ): PropertyDescriptor {

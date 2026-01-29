@@ -11,7 +11,8 @@
 export { HeimdallClient } from "./client";
 
 // Configuration
-export { HeimdallConfig, ResolvedHeimdallConfig, resolveConfig, validateConfig } from "./config";
+export type { HeimdallConfig, ResolvedHeimdallConfig } from "./config";
+export { resolveConfig, validateConfig } from "./config";
 
 // Wrappers and decorators
 export {
@@ -26,14 +27,12 @@ export {
 } from "./wrappers";
 
 // Types
-export {
-  SpanKind,
-  SpanStatus,
+export { SpanKind, SpanStatus, HeimdallAttributes } from "./types";
+export type {
   MCPToolCall,
   MCPResourceAccess,
   MCPPromptCall,
   TraceContext,
-  HeimdallAttributes,
   HeimdallAttributeKey,
 } from "./types";
 

@@ -32,10 +32,9 @@ import { HeimdallAttributes } from "./types";
  */
 export class HeimdallClient {
   private static instance: HeimdallClient | null = null;
-  private config: ResolvedHeimdallConfig;
+  private config!: ResolvedHeimdallConfig;
   private provider: NodeTracerProvider | null = null;
   private tracer: Tracer | null = null;
-  private initialized = false;
 
   constructor(config: HeimdallConfig = {}) {
     // Singleton pattern
@@ -49,7 +48,6 @@ export class HeimdallClient {
       this.setupTracing();
     }
 
-    this.initialized = true;
     HeimdallClient.instance = this;
   }
 
@@ -62,6 +60,7 @@ export class HeimdallClient {
     const resource = new Resource({
       [ATTR_SERVICE_NAME]: this.config.serviceName,
       [HeimdallAttributes.HEIMDALL_ENVIRONMENT]: this.config.environment,
+      [HeimdallAttributes.HEIMDALL_ORG_ID]: this.config.orgId,
       [HeimdallAttributes.HEIMDALL_PROJECT_ID]: this.config.projectId,
     });
 
