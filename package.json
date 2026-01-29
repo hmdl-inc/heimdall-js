@@ -1,15 +1,15 @@
 {
   "name": "hmdl",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Observability SDK for MCP (Model Context Protocol) servers - Heimdall Platform",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "files": [
@@ -38,15 +38,15 @@
     "ai",
     "heimdall"
   ],
-  "author": "Heimdall Team <team@heimdall.dev>",
+  "author": "Heimdall Team <founder@tryheimdall.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/heimdall-observability/heimdall"
+    "url": "https://github.com/hmdl-inc/heimdall-js"
   },
-  "homepage": "https://docs.heimdall.dev",
+  "homepage": "https://tryheimdall.com",
   "bugs": {
-    "url": "https://github.com/heimdall-observability/heimdall/issues"
+    "url": "https://github.com/hmdl-inc/heimdall-js/issues"
   },
   "engines": {
     "node": ">=18.0.0"

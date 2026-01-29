@@ -22,5 +22,5 @@ export { SpanKind, SpanStatus, HeimdallAttributes } from "./types";
 export type { MCPToolCall, TraceContext, HeimdallAttributeKey } from "./types";
 
 // Version
-export const VERSION = "0.1.0";
+export const VERSION = "0.0.1";
 
