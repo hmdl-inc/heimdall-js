@@ -15,26 +15,11 @@ export type { HeimdallConfig, ResolvedHeimdallConfig } from "./config";
 export { resolveConfig, validateConfig } from "./config";
 
 // Wrappers and decorators
-export {
-  traceMCPTool,
-  traceMCPResource,
-  traceMCPPrompt,
-  observe,
-  Observe,
-  MCPTool,
-  MCPResource,
-  MCPPrompt,
-} from "./wrappers";
+export { traceMCPTool, MCPTool } from "./wrappers";
 
 // Types
 export { SpanKind, SpanStatus, HeimdallAttributes } from "./types";
-export type {
-  MCPToolCall,
-  MCPResourceAccess,
-  MCPPromptCall,
-  TraceContext,
-  HeimdallAttributeKey,
-} from "./types";
+export type { MCPToolCall, TraceContext, HeimdallAttributeKey } from "./types";
 
 // Version
 export const VERSION = "0.1.0";

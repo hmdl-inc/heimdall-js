@@ -2,13 +2,8 @@
  * Tests for wrapper functions
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  traceMCPTool,
-  traceMCPResource,
-  traceMCPPrompt,
-  observe,
-} from "../src/wrappers";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { traceMCPTool } from "../src/wrappers";
 import { HeimdallClient } from "../src/client";
 
 // Mock the client module
@@ -65,103 +60,51 @@ describe("traceMCPTool", () => {
 
     expect(result).toBe("result");
   });
-});
 
-describe("traceMCPResource", () => {
-  beforeEach(() => {
-    vi.mocked(HeimdallClient.getInstance).mockReturnValue(null);
-  });
-
-  it("should wrap a resource function", async () => {
-    const readFile = (uri: string) => {
-      return `content of ${uri}`;
+  it("should handle multiple arguments", async () => {
+    const searchTool = (query: string, limit: number, offset: number) => {
+      return { query, limit, offset };
     };
 
-    const wrapped = traceMCPResource(readFile, { name: "read-file" });
-    const result = await wrapped("file://test.txt");
+    const wrapped = traceMCPTool(searchTool, { name: "search" });
+    const result = await wrapped("test", 10, 5);
 
-    expect(result).toBe("content of file://test.txt");
+    expect(result).toEqual({ query: "test", limit: 10, offset: 5 });
   });
 
-  it("should handle async resource functions", async () => {
-    const readFile = async (uri: string) => {
-      return `async content of ${uri}`;
+  it("should handle dictionary return values", async () => {
+    const calculator = (a: number, b: number) => {
+      return { sum: a + b, product: a * b, difference: a - b };
     };
 
-    const wrapped = traceMCPResource(readFile);
-    const result = await wrapped("file://test.txt");
+    const wrapped = traceMCPTool(calculator, { name: "calculator" });
+    const result = await wrapped(10, 3);
 
-    expect(result).toBe("async content of file://test.txt");
-  });
-});
-
-describe("traceMCPPrompt", () => {
-  beforeEach(() => {
-    vi.mocked(HeimdallClient.getInstance).mockReturnValue(null);
+    expect(result).toEqual({ sum: 13, product: 30, difference: 7 });
   });
 
-  it("should wrap a prompt function", async () => {
-    const generatePrompt = (context: string) => {
-      return [{ role: "user", content: context }];
+  it("should handle async errors", async () => {
+    const failingAsyncFn = async () => {
+      throw new Error("async error");
     };
 
-    const wrapped = traceMCPPrompt(generatePrompt, { name: "generate-prompt" });
-    const result = await wrapped("hello world");
+    const wrapped = traceMCPTool(failingAsyncFn, { name: "failing-async" });
 
-    expect(result).toEqual([{ role: "user", content: "hello world" }]);
-  });
-});
-
-describe("observe", () => {
-  beforeEach(() => {
-    vi.mocked(HeimdallClient.getInstance).mockReturnValue(null);
+    await expect(wrapped()).rejects.toThrow("async error");
   });
 
-  it("should wrap a sync function", async () => {
-    const processData = (data: { value: number }) => {
-      return { ...data, processed: true };
+  it("should handle functions with default parameters", async () => {
+    const weatherTool = (city: string, units: string = "celsius") => {
+      return { city, units, temp: 20 };
     };
 
-    const wrapped = observe(processData, { name: "process-data" });
-    const result = await wrapped({ value: 42 });
+    const wrapped = traceMCPTool(weatherTool, { name: "weather" });
 
-    expect(result).toEqual({ value: 42, processed: true });
-  });
+    const result1 = await wrapped("NYC");
+    expect(result1).toEqual({ city: "NYC", units: "celsius", temp: 20 });
 
-  it("should wrap an async function", async () => {
-    const asyncProcess = async (x: number) => {
-      return x * 2;
-    };
-
-    const wrapped = observe(asyncProcess);
-    const result = await wrapped(5);
-
-    expect(result).toBe(10);
-  });
-
-  it("should propagate errors", async () => {
-    const failingFn = () => {
-      throw new Error("observe error");
-    };
-
-    const wrapped = observe(failingFn);
-
-    await expect(wrapped()).rejects.toThrow("observe error");
-  });
-
-  it("should work with options", async () => {
-    const fn = (secret: string) => {
-      return `processed: ${secret}`;
-    };
-
-    const wrapped = observe(fn, {
-      name: "custom-name",
-      captureInput: false,
-      captureOutput: false,
-    });
-
-    const result = await wrapped("secret-data");
-    expect(result).toBe("processed: secret-data");
+    const result2 = await wrapped("LA", "fahrenheit");
+    expect(result2).toEqual({ city: "LA", units: "fahrenheit", temp: 20 });
   });
 });
 

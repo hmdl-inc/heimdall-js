@@ -65,14 +65,13 @@ const client = new HeimdallClient({
 });
 ```
 
-### 3. Instrument your MCP functions
+### 4. Instrument your MCP tool functions
 
 #### Using wrapper functions
 
 ```typescript
-import { traceMCPTool, traceMCPResource, traceMCPPrompt, observe } from 'hmdl';
+import { traceMCPTool } from 'hmdl';
 
-// Wrap MCP tool functions
 const searchDocuments = traceMCPTool(
   async (query: string, limit: number = 10) => {
     // Your implementation here
@@ -81,38 +80,18 @@ const searchDocuments = traceMCPTool(
   { name: 'search-documents' }
 );
 
-// Wrap MCP resource functions
-const readFile = traceMCPResource(
-  async (uri: string) => {
-    return fs.readFile(uri, 'utf-8');
-  },
-  { name: 'read-file' }
-);
-
-// Wrap MCP prompt functions
-const generatePrompt = traceMCPPrompt(
-  async (context: string) => {
-    return [
-      { role: 'system', content: 'You are a helpful assistant.' },
-      { role: 'user', content: `Summarize: ${context}` },
-    ];
-  },
-  { name: 'generate-summary-prompt' }
-);
-
-// General observation for any function
-const processData = observe(
+const anotherTool = traceMCPTool(
   async (data: Record<string, unknown>) => {
     return { processed: true, ...data };
   },
-  { name: 'process-data' }
+  { name: 'another-tool' }
 );
 ```
 
 #### Using TypeScript decorators
 
 ```typescript
-import { HeimdallClient, MCPTool, MCPResource, MCPPrompt, Observe } from 'hmdl';
+import { HeimdallClient, MCPTool } from 'hmdl';
 
 // Initialize client first
 new HeimdallClient();
@@ -124,25 +103,14 @@ class MyMCPServer {
     return results;
   }
 
-  @MCPResource({ name: 'file-reader' })
-  async readFile(uri: string) {
-    return fs.readFile(uri, 'utf-8');
-  }
-
-  @MCPPrompt()
-  async generatePrompt(context: string) {
-    return [{ role: 'user', content: context }];
-  }
-
-  @Observe({ captureOutput: false })
-  async internalProcess(data: unknown) {
-    // Sensitive output won't be captured
+  @MCPTool({ name: 'custom-tool-name' })
+  async anotherTool(data: unknown) {
     return processedData;
   }
 }
 ```
 
-### 4. Flush on shutdown
+### 5. Flush on shutdown
 
 ```typescript
 // Ensure spans are flushed before exit
