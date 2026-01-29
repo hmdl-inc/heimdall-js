@@ -77,14 +77,14 @@ const searchDocuments = traceMCPTool(
     // Your implementation here
     return results;
   },
-  { name: 'search-documents' }
+  { name: 'search-documents', paramNames: ['query', 'limit'] }
 );
 
 const anotherTool = traceMCPTool(
   async (data: Record<string, unknown>) => {
     return { processed: true, ...data };
   },
-  { name: 'another-tool' }
+  { name: 'another-tool', paramNames: ['data'] }
 );
 ```
 
@@ -172,10 +172,13 @@ await client.startSpan('my-operation', async (span) => {
 ```typescript
 const myTool = traceMCPTool(fn, {
   name: 'custom-name',      // Custom span name
+  paramNames: ['query', 'limit'],  // Parameter names for better input display
   captureInput: true,       // Capture function arguments (default: true)
   captureOutput: false,     // Don't capture return value
 });
 ```
+
+> **Note**: The `paramNames` option allows you to specify parameter names for better input display in the Heimdall dashboard. Without it, inputs are shown as an array. With it, inputs are shown as a named object (e.g., `{"query": "test", "limit": 10}` instead of `["test", 10]`).
 
 ## What gets tracked?
 

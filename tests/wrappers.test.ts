@@ -106,5 +106,19 @@ describe("traceMCPTool", () => {
     const result2 = await wrapped("LA", "fahrenheit");
     expect(result2).toEqual({ city: "LA", units: "fahrenheit", temp: 20 });
   });
+
+  it("should accept paramNames option", async () => {
+    const searchTool = (query: string, limit: number) => {
+      return { query, limit };
+    };
+
+    const wrapped = traceMCPTool(searchTool, {
+      name: "search",
+      paramNames: ["query", "limit"],
+    });
+
+    const result = await wrapped("test", 10);
+    expect(result).toEqual({ query: "test", limit: 10 });
+  });
 });
 

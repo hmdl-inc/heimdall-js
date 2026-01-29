@@ -37,6 +37,11 @@ interface WrapperOptions {
    */
   name?: string;
   /**
+   * Parameter names for the function arguments (for better input display)
+   * @example ["query", "limit", "offset"]
+   */
+  paramNames?: string[];
+  /**
    * Whether to capture input arguments
    * @default true
    */
@@ -46,6 +51,24 @@ interface WrapperOptions {
    * @default true
    */
   captureOutput?: boolean;
+}
+
+/**
+ * Convert args array to named object using paramNames
+ */
+function argsToNamedObject(
+  args: unknown[],
+  paramNames?: string[]
+): Record<string, unknown> | unknown[] {
+  if (!paramNames || paramNames.length === 0) {
+    return args;
+  }
+  const result: Record<string, unknown> = {};
+  for (let i = 0; i < args.length; i++) {
+    const name = paramNames[i] ?? `arg${i}`;
+    result[name] = args[i];
+  }
+  return result;
 }
 
 /**
@@ -62,6 +85,7 @@ function createMCPWrapper(
     options: WrapperOptions = {}
   ): T {
     const spanName = options.name ?? fn.name ?? "anonymous";
+    const paramNames = options.paramNames;
     const captureInput = options.captureInput ?? true;
     const captureOutput = options.captureOutput ?? true;
 
@@ -84,7 +108,8 @@ function createMCPWrapper(
         span.setAttribute("heimdall.span_kind", spanKind);
 
         if (captureInput) {
-          span.setAttribute(argsAttr, serializeValue(args));
+          const namedArgs = argsToNamedObject(args, paramNames);
+          span.setAttribute(argsAttr, serializeValue(namedArgs));
         }
 
         // Execute the function
@@ -193,6 +218,7 @@ export function observe<T extends AnyFunction>(
   options: WrapperOptions = {}
 ): T {
   const spanName = options.name ?? fn.name ?? "anonymous";
+  const paramNames = options.paramNames;
   const captureInput = options.captureInput ?? true;
   const captureOutput = options.captureOutput ?? true;
 
@@ -213,7 +239,8 @@ export function observe<T extends AnyFunction>(
       span.setAttribute("heimdall.span_kind", SpanKind.INTERNAL);
 
       if (captureInput) {
-        span.setAttribute("heimdall.input", serializeValue(args));
+        const namedArgs = argsToNamedObject(args, paramNames);
+        span.setAttribute("heimdall.input", serializeValue(namedArgs));
       }
 
       const result = await fn.apply(this, args);
@@ -264,6 +291,7 @@ export function Observe(options: WrapperOptions = {}) {
   ): PropertyDescriptor {
     const originalMethod = descriptor.value as AnyFunction;
     const spanName = options.name ?? propertyKey;
+    const paramNames = options.paramNames;
 
     descriptor.value = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
       const client = HeimdallClient.getInstance();
@@ -282,7 +310,8 @@ export function Observe(options: WrapperOptions = {}) {
         span.setAttribute("heimdall.span_kind", SpanKind.INTERNAL);
 
         if (options.captureInput !== false) {
-          span.setAttribute("heimdall.input", serializeValue(args));
+          const namedArgs = argsToNamedObject(args, paramNames);
+          span.setAttribute("heimdall.input", serializeValue(namedArgs));
         }
 
         const result = await originalMethod.apply(this, args);
