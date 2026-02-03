@@ -18,21 +18,6 @@ export { resolveConfig, validateConfig } from "./config";
 export { traceMCPTool, MCPTool } from "./wrappers";
 export type { UserExtractor, SessionExtractor, WrapperOptions } from "./wrappers";
 
-// MCP Context utilities
-export type { MCPRequestContext } from "./context";
-export {
-  createMCPContext,
-  getMCPContext,
-  setMCPContext,
-  runWithMCPContext,
-  runWithMCPContextAsync,
-  mcpContextMiddleware,
-  parseJwtClaims,
-  extractUserIdFromToken,
-  MCP_SESSION_ID_HEADER,
-  AUTHORIZATION_HEADER,
-} from "./context";
-
 // Types
 export { SpanKind, SpanStatus, HeimdallAttributes } from "./types";
 export type { MCPToolCall, TraceContext, HeimdallAttributeKey } from "./types";

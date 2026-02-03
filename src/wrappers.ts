@@ -5,7 +5,71 @@
 import { SpanKind as OtelSpanKind, SpanStatusCode, Span } from "@opentelemetry/api";
 import { HeimdallClient } from "./client";
 import { HeimdallAttributes, SpanKind, SpanStatus } from "./types";
-import { getMCPContext } from "./context";
+
+/** MCP Session ID header name */
+const MCP_SESSION_ID_HEADER = "Mcp-Session-Id";
+/** Authorization header name */
+const AUTHORIZATION_HEADER = "Authorization";
+
+/**
+ * Parse JWT claims from a token string (without verification)
+ */
+function parseJwtClaims(token: string): Record<string, unknown> {
+  try {
+    let tokenStr = token;
+    if (tokenStr.toLowerCase().startsWith("bearer ")) {
+      tokenStr = tokenStr.slice(7);
+    }
+    const parts = tokenStr.split(".");
+    if (parts.length !== 3) {
+      return {};
+    }
+    const payload = parts[1];
+    if (!payload) {
+      return {};
+    }
+    const decoded = Buffer.from(payload, "base64url").toString("utf-8");
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Extract user ID from a JWT token
+ */
+function extractUserIdFromToken(token: string): string | undefined {
+  const claims = parseJwtClaims(token);
+  // Check common user ID claims in order of preference
+  for (const claim of ["sub", "user_id", "userId", "uid"]) {
+    if (typeof claims[claim] === "string") {
+      return claims[claim] as string;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extract session ID and user ID from HTTP headers
+ */
+function extractFromHeaders(headers: Record<string, string | undefined>): {
+  sessionId?: string;
+  userId?: string;
+} {
+  // Normalize headers to lowercase for case-insensitive lookup
+  const normalizedHeaders: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (value !== undefined) {
+      normalizedHeaders[key.toLowerCase()] = value;
+    }
+  }
+
+  const sessionId = normalizedHeaders[MCP_SESSION_ID_HEADER.toLowerCase()];
+  const authHeader = normalizedHeaders[AUTHORIZATION_HEADER.toLowerCase()];
+  const userId = authHeader ? extractUserIdFromToken(authHeader) : undefined;
+
+  return { sessionId, userId };
+}
 
 type AnyFunction = (...args: unknown[]) => unknown;
 
@@ -89,32 +153,33 @@ export interface WrapperOptions {
    */
   captureOutput?: boolean;
   /**
-   * Function to extract user ID from the function arguments.
-   * Useful for extracting user/session info from MCP Context.
-   * Takes precedence over client.setUserId() if provided and returns a value.
+   * HTTP headers from the MCP request.
+   * Used to automatically extract session ID from `Mcp-Session-Id` header
+   * and user ID from JWT token in `Authorization` header.
    *
    * @example
    * ```typescript
-   * // Extract user from MCP Context
-   * userExtractor: (args) => {
-   *   const ctx = args[0] as any;
-   *   return ctx?.session?.clientInfo?.name ?? ctx?.sessionId;
-   * }
+   * traceMCPTool(myFn, { headers: req.headers })
+   * ```
+   */
+  headers?: Record<string, string | undefined>;
+  /**
+   * Function to extract user ID from the function arguments.
+   * Takes precedence over headers and client.setUserId().
+   *
+   * @example
+   * ```typescript
+   * userExtractor: (args) => args[0]?.userId
    * ```
    */
   userExtractor?: UserExtractor;
   /**
    * Function to extract session ID from the function arguments.
-   * Useful for extracting session info from MCP Context.
-   * Takes precedence over client.setSessionId() if provided and returns a value.
+   * Takes precedence over headers and client.setSessionId().
    *
    * @example
    * ```typescript
-   * // Extract session from MCP Context
-   * sessionExtractor: (args) => {
-   *   const ctx = args[0] as any;
-   *   return ctx?.sessionId ?? ctx?.meta?.sessionId;
-   * }
+   * sessionExtractor: (args) => args[0]?.sessionId
    * ```
    */
   sessionExtractor?: SessionExtractor;
@@ -157,6 +222,10 @@ function createMCPWrapper(
     const captureOutput = options.captureOutput ?? true;
     const userExtractor = options.userExtractor;
     const sessionExtractor = options.sessionExtractor;
+    const headers = options.headers;
+
+    // Pre-extract from headers if provided
+    const headerData = headers ? extractFromHeaders(headers) : undefined;
 
     const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
       const client = HeimdallClient.getInstance();
@@ -176,7 +245,7 @@ function createMCPWrapper(
         span.setAttribute(nameAttr, spanName);
         span.setAttribute("heimdall.span_kind", spanKind);
 
-        // Extract session ID - try sessionExtractor first, then MCP context, then client's sessionId
+        // Extract session ID - priority: extractor > headers > client
         let sessionId: string | undefined;
         if (sessionExtractor) {
           try {
@@ -185,12 +254,9 @@ function createMCPWrapper(
             // Ignore extraction errors
           }
         }
-        // Fallback to MCP context
-        if (!sessionId) {
-          const mcpCtx = getMCPContext();
-          if (mcpCtx?.sessionId) {
-            sessionId = mcpCtx.sessionId;
-          }
+        // Fallback to headers
+        if (!sessionId && headerData?.sessionId) {
+          sessionId = headerData.sessionId;
         }
         // Fallback to client's session ID
         if (!sessionId) {
@@ -200,7 +266,7 @@ function createMCPWrapper(
           span.setAttribute(HeimdallAttributes.HEIMDALL_SESSION_ID, sessionId);
         }
 
-        // Extract user ID - try userExtractor first, then MCP context, then client's userId, then "anonymous"
+        // Extract user ID - priority: extractor > headers > client > "anonymous"
         let userId: string | undefined;
         if (userExtractor) {
           try {
@@ -209,12 +275,9 @@ function createMCPWrapper(
             // Ignore extraction errors
           }
         }
-        // Fallback to MCP context
-        if (!userId) {
-          const mcpCtx = getMCPContext();
-          if (mcpCtx?.userId) {
-            userId = mcpCtx.userId;
-          }
+        // Fallback to headers
+        if (!userId && headerData?.userId) {
+          userId = headerData.userId;
         }
         // Fallback to client's user ID
         if (!userId) {
