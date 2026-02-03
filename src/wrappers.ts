@@ -5,6 +5,7 @@
 import { SpanKind as OtelSpanKind, SpanStatusCode, Span } from "@opentelemetry/api";
 import { HeimdallClient } from "./client";
 import { HeimdallAttributes, SpanKind, SpanStatus } from "./types";
+import { getMCPContext } from "./context";
 
 type AnyFunction = (...args: unknown[]) => unknown;
 
@@ -47,9 +48,27 @@ function recordError(span: Span, error: unknown): void {
  * };
  * ```
  */
-type UserExtractor = (args: unknown[]) => string | undefined;
+export type UserExtractor = (args: unknown[]) => string | undefined;
 
-interface WrapperOptions {
+/**
+ * Function to extract session ID from the function arguments.
+ * This is useful for extracting session info from MCP Context or other sources.
+ *
+ * @param args - The arguments passed to the wrapped function
+ * @returns The session ID string, or undefined to use the default
+ *
+ * @example
+ * ```typescript
+ * // Extract session from MCP Context (first argument)
+ * const sessionExtractor = (args: unknown[]) => {
+ *   const ctx = args[0] as any;
+ *   return ctx?.sessionId ?? ctx?.meta?.sessionId;
+ * };
+ * ```
+ */
+export type SessionExtractor = (args: unknown[]) => string | undefined;
+
+export interface WrapperOptions {
   /**
    * Custom name for the span (defaults to function name)
    */
@@ -72,6 +91,7 @@ interface WrapperOptions {
   /**
    * Function to extract user ID from the function arguments.
    * Useful for extracting user/session info from MCP Context.
+   * Takes precedence over client.setUserId() if provided and returns a value.
    *
    * @example
    * ```typescript
@@ -83,6 +103,21 @@ interface WrapperOptions {
    * ```
    */
   userExtractor?: UserExtractor;
+  /**
+   * Function to extract session ID from the function arguments.
+   * Useful for extracting session info from MCP Context.
+   * Takes precedence over client.setSessionId() if provided and returns a value.
+   *
+   * @example
+   * ```typescript
+   * // Extract session from MCP Context
+   * sessionExtractor: (args) => {
+   *   const ctx = args[0] as any;
+   *   return ctx?.sessionId ?? ctx?.meta?.sessionId;
+   * }
+   * ```
+   */
+  sessionExtractor?: SessionExtractor;
 }
 
 /**
@@ -121,6 +156,7 @@ function createMCPWrapper(
     const captureInput = options.captureInput ?? true;
     const captureOutput = options.captureOutput ?? true;
     const userExtractor = options.userExtractor;
+    const sessionExtractor = options.sessionExtractor;
 
     const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
       const client = HeimdallClient.getInstance();
@@ -140,19 +176,52 @@ function createMCPWrapper(
         span.setAttribute(nameAttr, spanName);
         span.setAttribute("heimdall.span_kind", spanKind);
 
-        // Extract user ID - try userExtractor first, fallback to "anonymous"
-        let userId = "anonymous";
-        if (userExtractor) {
+        // Extract session ID - try sessionExtractor first, then MCP context, then client's sessionId
+        let sessionId: string | undefined;
+        if (sessionExtractor) {
           try {
-            const extractedUserId = userExtractor(args);
-            if (extractedUserId) {
-              userId = extractedUserId;
-            }
+            sessionId = sessionExtractor(args);
           } catch {
-            // Ignore extraction errors, use "anonymous"
+            // Ignore extraction errors
           }
         }
-        span.setAttribute(HeimdallAttributes.HEIMDALL_USER_ID, userId);
+        // Fallback to MCP context
+        if (!sessionId) {
+          const mcpCtx = getMCPContext();
+          if (mcpCtx?.sessionId) {
+            sessionId = mcpCtx.sessionId;
+          }
+        }
+        // Fallback to client's session ID
+        if (!sessionId) {
+          sessionId = client.getSessionId();
+        }
+        if (sessionId) {
+          span.setAttribute(HeimdallAttributes.HEIMDALL_SESSION_ID, sessionId);
+        }
+
+        // Extract user ID - try userExtractor first, then MCP context, then client's userId, then "anonymous"
+        let userId: string | undefined;
+        if (userExtractor) {
+          try {
+            userId = userExtractor(args);
+          } catch {
+            // Ignore extraction errors
+          }
+        }
+        // Fallback to MCP context
+        if (!userId) {
+          const mcpCtx = getMCPContext();
+          if (mcpCtx?.userId) {
+            userId = mcpCtx.userId;
+          }
+        }
+        // Fallback to client's user ID
+        if (!userId) {
+          userId = client.getUserId();
+        }
+        // Set user ID (default to "anonymous" if still not set)
+        span.setAttribute(HeimdallAttributes.HEIMDALL_USER_ID, userId ?? "anonymous");
 
         if (captureInput) {
           const namedArgs = argsToNamedObject(args, paramNames);

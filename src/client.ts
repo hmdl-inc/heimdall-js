@@ -36,6 +36,10 @@ export class HeimdallClient {
   private provider: NodeTracerProvider | null = null;
   private tracer: Tracer | null = null;
 
+  // Runtime session and user tracking (can be updated dynamically)
+  private _sessionId: string | undefined;
+  private _userId: string | undefined;
+
   constructor(config: HeimdallConfig = {}) {
     // Singleton pattern
     if (HeimdallClient.instance) {
@@ -43,6 +47,10 @@ export class HeimdallClient {
     }
 
     this.config = resolveConfig(config);
+
+    // Initialize session and user IDs from config
+    this._sessionId = this.config.sessionId;
+    this._userId = this.config.userId;
 
     if (this.config.enabled) {
       this.setupTracing();
@@ -177,6 +185,60 @@ export class HeimdallClient {
       if (this.config.debug) {
         console.debug("[Heimdall] Client shutdown complete");
       }
+    }
+  }
+
+  /**
+   * Get the current session ID
+   */
+  getSessionId(): string | undefined {
+    return this._sessionId;
+  }
+
+  /**
+   * Set the session ID for all subsequent spans.
+   * Call this when an MCP client connects to associate all operations with that session.
+   *
+   * @param sessionId - The session identifier (e.g., from MCP client connection)
+   *
+   * @example
+   * ```typescript
+   * // When MCP client connects
+   * server.on('connect', (ctx) => {
+   *   client.setSessionId(ctx.sessionId ?? ctx.clientInfo?.name);
+   * });
+   * ```
+   */
+  setSessionId(sessionId: string | undefined): void {
+    this._sessionId = sessionId;
+    if (this.config.debug) {
+      console.debug(`[Heimdall] Session ID set to: ${sessionId ?? "undefined"}`);
+    }
+  }
+
+  /**
+   * Get the current user ID
+   */
+  getUserId(): string | undefined {
+    return this._userId;
+  }
+
+  /**
+   * Set the user ID for all subsequent spans.
+   * Can be overridden per-span using userExtractor option in wrappers.
+   *
+   * @param userId - The user identifier
+   *
+   * @example
+   * ```typescript
+   * // When user is identified
+   * client.setUserId('user-123');
+   * ```
+   */
+  setUserId(userId: string | undefined): void {
+    this._userId = userId;
+    if (this.config.debug) {
+      console.debug(`[Heimdall] User ID set to: ${userId ?? "undefined"}`);
     }
   }
 

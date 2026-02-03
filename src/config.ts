@@ -39,6 +39,19 @@ export interface HeimdallConfig {
   projectId?: string;
 
   /**
+   * Session ID to associate with all spans.
+   * Useful for tracking requests from the same MCP client session.
+   * Can be set at initialization or updated dynamically via client.setSessionId()
+   */
+  sessionId?: string;
+
+  /**
+   * User ID to associate with all spans.
+   * Can be overridden per-span using userExtractor option in wrappers.
+   */
+  userId?: string;
+
+  /**
    * Whether tracing is enabled
    * @default true
    */
@@ -84,6 +97,8 @@ export interface ResolvedHeimdallConfig {
   environment: string;
   orgId: string;
   projectId: string;
+  sessionId: string | undefined;
+  userId: string | undefined;
   enabled: boolean;
   debug: boolean;
   batchSize: number;
@@ -132,6 +147,8 @@ export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConf
     environment: config.environment ?? getEnv("HEIMDALL_ENVIRONMENT", "development")!,
     orgId: config.orgId ?? getEnv("HEIMDALL_ORG_ID", "default")!,
     projectId: config.projectId ?? getEnv("HEIMDALL_PROJECT_ID", "default")!,
+    sessionId: config.sessionId ?? getEnv("HEIMDALL_SESSION_ID"),
+    userId: config.userId ?? getEnv("HEIMDALL_USER_ID"),
     enabled: config.enabled ?? getEnvBool("HEIMDALL_ENABLED", true),
     debug: config.debug ?? getEnvBool("HEIMDALL_DEBUG", false),
     batchSize: config.batchSize ?? getEnvNumber("HEIMDALL_BATCH_SIZE", 100),

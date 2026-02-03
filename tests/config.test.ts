@@ -23,7 +23,7 @@ describe("resolveConfig", () => {
 
     const config = resolveConfig({});
 
-    expect(config.endpoint).toBe("https://api.heimdall.dev");
+    expect(config.endpoint).toBe("http://localhost:4318");
     expect(config.serviceName).toBe("mcp-server");
     expect(config.environment).toBe("development");
     expect(config.enabled).toBe(true);
