@@ -10,7 +10,7 @@ export interface HeimdallConfig {
 
   /**
    * The Heimdall platform endpoint URL
-   * @default "https://api.heimdall.dev"
+   * @default "http://localhost:4318"
    */
   endpoint?: string;
 
@@ -127,7 +127,7 @@ function getEnvNumber(key: string, defaultValue: number): number {
 export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConfig {
   return {
     apiKey: config.apiKey ?? getEnv("HEIMDALL_API_KEY"),
-    endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "https://api.heimdall.dev")!,
+    endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "http://localhost:4318")!,
     serviceName: config.serviceName ?? getEnv("HEIMDALL_SERVICE_NAME", "mcp-server")!,
     environment: config.environment ?? getEnv("HEIMDALL_ENVIRONMENT", "development")!,
     orgId: config.orgId ?? getEnv("HEIMDALL_ORG_ID", "default")!,
