@@ -16,6 +16,7 @@ export { resolveConfig, validateConfig } from "./config";
 
 // Wrappers and decorators
 export { traceMCPTool, MCPTool } from "./wrappers";
+export type { UserExtractor, SessionExtractor, WrapperOptions } from "./wrappers";
 
 // Types
 export { SpanKind, SpanStatus, HeimdallAttributes } from "./types";

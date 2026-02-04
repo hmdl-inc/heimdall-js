@@ -139,6 +139,8 @@ process.on('SIGTERM', async () => {
 | `HEIMDALL_DEBUG` | Enable debug logging | `false` |
 | `HEIMDALL_BATCH_SIZE` | Spans per batch | `100` |
 | `HEIMDALL_FLUSH_INTERVAL_MS` | Flush interval (ms) | `5000` |
+| `HEIMDALL_SESSION_ID` | Default session ID | - |
+| `HEIMDALL_USER_ID` | Default user ID | - |
 
 ### Local Development
 
@@ -152,6 +154,52 @@ export HEIMDALL_ENABLED="true"
 ```
 
 ## Advanced Usage
+
+### Session and User Tracking
+
+`traceMCPTool` automatically includes session and user IDs in spans. You just need to provide them via one of these methods:
+
+#### Option 1: HTTP Headers (Recommended for MCP servers)
+
+Pass HTTP headers directly to `traceMCPTool`. Session ID is extracted from the `Mcp-Session-Id` header, and user ID from the JWT token in the `Authorization` header:
+
+```typescript
+import { traceMCPTool } from 'hmdl';
+
+app.post('/mcp', async (req, res) => {
+  const searchTool = traceMCPTool(async (query: string) => {
+    return results;
+  }, {
+    name: 'search',
+    headers: req.headers  // Automatically extracts session/user
+  });
+
+  const result = await searchTool('test');
+  res.json(result);
+});
+```
+
+#### Option 2: Extractors (Per-tool extraction)
+
+```typescript
+const myTool = traceMCPTool(
+  (ctx: { sessionId?: string; userId?: string }, query: string) => {
+    return `Query: ${query}`;
+  },
+  {
+    name: 'my-tool',
+    // Context is the first argument (args[0])
+    sessionExtractor: (args) => args[0]?.sessionId,
+    userExtractor: (args) => args[0]?.userId,
+  }
+);
+```
+
+#### Resolution Priority
+
+1. Extractor callback → 2. HTTP headers → 3. Client value (initialized from environment variables)
+
+> **Note**: If no user ID is found through any of these methods, `"anonymous"` is used as the default.
 
 ### Manual spans
 

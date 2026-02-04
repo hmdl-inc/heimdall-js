@@ -10,7 +10,7 @@ export interface HeimdallConfig {
 
   /**
    * The Heimdall platform endpoint URL
-   * @default "https://api.heimdall.dev"
+   * @default "http://localhost:4318"
    */
   endpoint?: string;
 
@@ -37,6 +37,19 @@ export interface HeimdallConfig {
    * @default "default"
    */
   projectId?: string;
+
+  /**
+   * Session ID to associate with all spans.
+   * Useful for tracking requests from the same MCP client session.
+   * Can be set at initialization or updated dynamically via client.setSessionId()
+   */
+  sessionId?: string;
+
+  /**
+   * User ID to associate with all spans.
+   * Can be overridden per-span using userExtractor option in wrappers.
+   */
+  userId?: string;
 
   /**
    * Whether tracing is enabled
@@ -84,6 +97,8 @@ export interface ResolvedHeimdallConfig {
   environment: string;
   orgId: string;
   projectId: string;
+  sessionId: string | undefined;
+  userId: string | undefined;
   enabled: boolean;
   debug: boolean;
   batchSize: number;
@@ -127,11 +142,13 @@ function getEnvNumber(key: string, defaultValue: number): number {
 export function resolveConfig(config: HeimdallConfig = {}): ResolvedHeimdallConfig {
   return {
     apiKey: config.apiKey ?? getEnv("HEIMDALL_API_KEY"),
-    endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "https://api.heimdall.dev")!,
+    endpoint: config.endpoint ?? getEnv("HEIMDALL_ENDPOINT", "http://localhost:4318")!,
     serviceName: config.serviceName ?? getEnv("HEIMDALL_SERVICE_NAME", "mcp-server")!,
     environment: config.environment ?? getEnv("HEIMDALL_ENVIRONMENT", "development")!,
     orgId: config.orgId ?? getEnv("HEIMDALL_ORG_ID", "default")!,
     projectId: config.projectId ?? getEnv("HEIMDALL_PROJECT_ID", "default")!,
+    sessionId: config.sessionId ?? getEnv("HEIMDALL_SESSION_ID"),
+    userId: config.userId ?? getEnv("HEIMDALL_USER_ID"),
     enabled: config.enabled ?? getEnvBool("HEIMDALL_ENABLED", true),
     debug: config.debug ?? getEnvBool("HEIMDALL_DEBUG", false),
     batchSize: config.batchSize ?? getEnvNumber("HEIMDALL_BATCH_SIZE", 100),

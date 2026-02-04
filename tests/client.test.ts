@@ -147,5 +147,70 @@ describe("HeimdallClient", () => {
       expect(span).toBeUndefined();
     });
   });
+
+  describe("session and user ID management", () => {
+    it("should get and set session ID", () => {
+      const client = new HeimdallClient({ enabled: false });
+
+      expect(client.getSessionId()).toBeUndefined();
+
+      client.setSessionId("session-123");
+      expect(client.getSessionId()).toBe("session-123");
+
+      client.setSessionId(undefined);
+      expect(client.getSessionId()).toBeUndefined();
+    });
+
+    it("should get and set user ID", () => {
+      const client = new HeimdallClient({ enabled: false });
+
+      expect(client.getUserId()).toBeUndefined();
+
+      client.setUserId("user-456");
+      expect(client.getUserId()).toBe("user-456");
+
+      client.setUserId(undefined);
+      expect(client.getUserId()).toBeUndefined();
+    });
+
+    it("should initialize session ID from environment variable", async () => {
+      await HeimdallClient.reset();
+      process.env.HEIMDALL_SESSION_ID = "env-session-id";
+      process.env.HEIMDALL_ENABLED = "false";
+
+      const client = new HeimdallClient();
+
+      expect(client.getSessionId()).toBe("env-session-id");
+
+      delete process.env.HEIMDALL_SESSION_ID;
+    });
+
+    it("should initialize user ID from environment variable", async () => {
+      await HeimdallClient.reset();
+      process.env.HEIMDALL_USER_ID = "env-user-id";
+      process.env.HEIMDALL_ENABLED = "false";
+
+      const client = new HeimdallClient();
+
+      expect(client.getUserId()).toBe("env-user-id");
+
+      delete process.env.HEIMDALL_USER_ID;
+    });
+  });
+
+  describe("getConfig", () => {
+    it("should return config without API key for security", () => {
+      const client = new HeimdallClient({
+        apiKey: "secret-api-key",
+        serviceName: "test-service",
+        enabled: false,
+      });
+
+      const config = client.getConfig();
+
+      expect(config.serviceName).toBe("test-service");
+      expect((config as Record<string, unknown>).apiKey).toBeUndefined();
+    });
+  });
 });
 
