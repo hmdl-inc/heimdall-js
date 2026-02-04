@@ -147,3 +147,67 @@ describe("validateConfig", () => {
   });
 });
 
+describe("session and user ID configuration", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it("should resolve session ID from environment variable", () => {
+    process.env.HEIMDALL_SESSION_ID = "env-session-123";
+
+    const config = resolveConfig({});
+
+    expect(config.sessionId).toBe("env-session-123");
+  });
+
+  it("should resolve user ID from environment variable", () => {
+    process.env.HEIMDALL_USER_ID = "env-user-456";
+
+    const config = resolveConfig({});
+
+    expect(config.userId).toBe("env-user-456");
+  });
+
+  it("should prefer explicit config over environment variables for session ID", () => {
+    process.env.HEIMDALL_SESSION_ID = "env-session";
+
+    const config = resolveConfig({
+      sessionId: "explicit-session",
+    });
+
+    expect(config.sessionId).toBe("explicit-session");
+  });
+
+  it("should prefer explicit config over environment variables for user ID", () => {
+    process.env.HEIMDALL_USER_ID = "env-user";
+
+    const config = resolveConfig({
+      userId: "explicit-user",
+    });
+
+    expect(config.userId).toBe("explicit-user");
+  });
+
+  it("should have undefined session ID when not set", () => {
+    delete process.env.HEIMDALL_SESSION_ID;
+
+    const config = resolveConfig({});
+
+    expect(config.sessionId).toBeUndefined();
+  });
+
+  it("should have undefined user ID when not set", () => {
+    delete process.env.HEIMDALL_USER_ID;
+
+    const config = resolveConfig({});
+
+    expect(config.userId).toBeUndefined();
+  });
+});
+
