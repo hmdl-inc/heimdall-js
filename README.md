@@ -140,7 +140,7 @@ process.on('SIGTERM', async () => {
 | `HEIMDALL_BATCH_SIZE` | Spans per batch | `100` |
 | `HEIMDALL_FLUSH_INTERVAL_MS` | Flush interval (ms) | `5000` |
 | `HEIMDALL_SESSION_ID` | Default session ID | - |
-| `HEIMDALL_USER_ID` | Default user ID | `anonymous` |
+| `HEIMDALL_USER_ID` | Default user ID | - |
 
 ### Local Development
 
@@ -196,7 +196,9 @@ const myTool = traceMCPTool(
 
 #### Resolution Priority
 
-1. Extractor callback → 2. HTTP headers → 3. Client value → 4. Environment variable
+1. Extractor callback → 2. HTTP headers → 3. Client value (initialized from environment variables)
+
+> **Note**: If no user ID is found through any of these methods, `"anonymous"` is used as the default.
 
 ### Manual spans
 
