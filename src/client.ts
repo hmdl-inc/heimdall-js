@@ -161,10 +161,11 @@ export class HeimdallClient {
   }
 
   /**
-   * Get the resolved configuration
+   * Get the resolved configuration without exposing sensitive fields like the API key.
    */
-  getConfig(): ResolvedHeimdallConfig {
-    return this.config;
+  getConfig(): Omit<ResolvedHeimdallConfig, "apiKey"> {
+    const { apiKey, ...safeConfig } = this.config;
+    return safeConfig;
   }
 
   /**
