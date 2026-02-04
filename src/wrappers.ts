@@ -56,16 +56,28 @@ function extractFromHeaders(headers: Record<string, string | undefined>): {
   sessionId?: string;
   userId?: string;
 } {
-  // Normalize headers to lowercase for case-insensitive lookup
-  const normalizedHeaders: Record<string, string> = {};
+  // Look for relevant headers with a single pass and case-insensitive comparison
+  const sessionHeaderKey = MCP_SESSION_ID_HEADER.toLowerCase();
+  const authHeaderKey = AUTHORIZATION_HEADER.toLowerCase();
+
+  let sessionId: string | undefined;
+  let authHeader: string | undefined;
+
   for (const [key, value] of Object.entries(headers)) {
-    if (value !== undefined) {
-      normalizedHeaders[key.toLowerCase()] = value;
+    if (value === undefined) {
+      continue;
+    }
+    const lowerKey = key.toLowerCase();
+    if (lowerKey === sessionHeaderKey) {
+      sessionId = value;
+    } else if (lowerKey === authHeaderKey) {
+      authHeader = value;
+    }
+    // Early exit if both found
+    if (sessionId !== undefined && authHeader !== undefined) {
+      break;
     }
   }
-
-  const sessionId = normalizedHeaders[MCP_SESSION_ID_HEADER.toLowerCase()];
-  const authHeader = normalizedHeaders[AUTHORIZATION_HEADER.toLowerCase()];
   const userId = authHeader ? extractUserIdFromToken(authHeader) : undefined;
 
   return { sessionId, userId };
@@ -224,14 +236,14 @@ function createMCPWrapper(
     const sessionExtractor = options.sessionExtractor;
     const headers = options.headers;
 
-    // Pre-extract from headers if provided
-    const headerData = headers ? extractFromHeaders(headers) : undefined;
-
     const wrapped = async function (this: unknown, ...args: unknown[]): Promise<unknown> {
       const client = HeimdallClient.getInstance();
       if (!client) {
         return fn.apply(this, args);
       }
+
+      // Extract from headers at call time (not wrapper creation time)
+      const headerData = headers ? extractFromHeaders(headers) : undefined;
 
       const tracer = client.getTracer();
       const span = tracer.startSpan(spanName, {

@@ -183,13 +183,14 @@ app.post('/mcp', async (req, res) => {
 
 ```typescript
 const myTool = traceMCPTool(
-  (query: string, ctx: { sessionId?: string; userId?: string }) => {
+  (ctx: { sessionId?: string; userId?: string }, query: string) => {
     return `Query: ${query}`;
   },
   {
     name: 'my-tool',
-    sessionExtractor: (args) => args[1]?.sessionId,
-    userExtractor: (args) => args[1]?.userId,
+    // Context is the first argument (args[0])
+    sessionExtractor: (args) => args[0]?.sessionId,
+    userExtractor: (args) => args[0]?.userId,
   }
 );
 ```
